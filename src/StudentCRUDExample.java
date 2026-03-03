@@ -12,7 +12,7 @@ public class StudentCRUDExample {
     private static final String USERNAME = "root";
     private static final String PASSWORD = "IST888IST888";
 
-    public static void main(String[] args) {
+    public StudentCRUDExample() {
         Connection connection = null;
         try {
             connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD);
