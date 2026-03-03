@@ -1,45 +1,57 @@
-import com.mongodb.client.MongoClients;
-import com.mongodb.client.MongoClient;
-import com.mongodb.client.MongoCollection;
-import com.mongodb.client.MongoDatabase;
-import com.mongodb.client.FindIterable;
+import com.mongodb.client.*;
 import org.bson.Document;
 
 public class StudentMongoCRUDExample {
 
-    MongoCollection<Document> collection;
+    private final MongoClient mongoClient;
+    private final MongoCollection<Document> collection;
+
     public StudentMongoCRUDExample() {
-        // Create a MongoClient using the factory method
-        try (MongoClient mongoClient = MongoClients.create("mongodb://localhost:27017")) {
-            // Access the database and collection
-            MongoDatabase database = mongoClient.getDatabase("your_database_name");
-            collection = database.getCollection("students");
+        mongoClient = MongoClients.create("mongodb://localhost:27017");
+        MongoDatabase database = mongoClient.getDatabase("school");
+        collection = database.getCollection("students");
+    }
+
+    public void close() {
+        mongoClient.close();
+    }
+
+    // CREATE
+    public void create(Student student) {
+        Document doc = new Document("id", student.getId())
+                .append("first_name", student.getFirstName())
+                .append("last_name", student.getLastName())
+                .append("age", student.getAge())
+                .append("email", student.getEmail())
+                .append("phone", student.getPhone());
+
+        collection.insertOne(doc);
+    }
+
+    // READ (by id)
+    public void read(int id) {
+        Document doc = collection.find(new Document("id", id)).first();
+        if (doc == null) {
+            System.out.println("Mongo: No student found with id=" + id);
+        } else {
+            System.out.println(doc.toJson());
         }
     }
 
-        public void create(Student student) {
-            // Example: Insert a document
-            Document newStudent = new Document("first_name", "John")
-                    .append("last_name", "Doe")
-                    .append("age", 20)
-                    .append("email", "john@example.com");
-            collection.insertOne(newStudent);
-        }
+    // UPDATE (by id)
+    public void update(Student student) {
+        Document filter = new Document("id", student.getId());
+        Document set = new Document("first_name", student.getFirstName())
+                .append("last_name", student.getLastName())
+                .append("age", student.getAge())
+                .append("email", student.getEmail())
+                .append("phone", student.getPhone());
 
-        public void read(int id) {
-            FindIterable<Document> students = collection.find();
-            for (Document student : students) {
-                System.out.println(student.toJson());
-            }
-        }
+        collection.updateOne(filter, new Document("$set", set));
+    }
 
-        public void update(Student student) {
-            Document updatedStudent = new Document("$set", new Document("first_name", "Updated First Name"));
-            collection.updateOne(new Document("first_name", "John"), updatedStudent);
-        }
-
-        public void delete(int id) {
-            collection.deleteOne(new Document("first_name", "John"));
-        }
+    // DELETE (by id)
+    public void delete(int id) {
+        collection.deleteOne(new Document("id", id));
     }
 }

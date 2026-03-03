@@ -1,127 +1,100 @@
-//import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.sql.Connection;
+import java.sql.*;
 
 public class StudentCRUDExample {
+
     private static final String JDBC_URL = "jdbc:mysql://127.0.0.1:3306/school";
     private static final String USERNAME = "root";
     private static final String PASSWORD = "IST888IST888";
 
+    private Connection connection;
+
     public StudentCRUDExample() {
-        Connection connection = null;
         try {
-            connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD);
+            this.connection = DriverManager.getConnection(JDBC_URL, USERNAME, PASSWORD);
+        } catch (SQLException e) {
+            throw new RuntimeException("Failed to connect to MySQL", e);
+        }
+    }
 
-            // Create
-            insertStudent(connection, 1, "John", "Doe", 20, "john@example.com");
-
-            // Read
-            List<Student> students = getAllStudents(connection);
-            for (Student student : students) {
-                System.out.println(student.toString());
-            }
-
-            // Update
-            updateStudent(connection, 1, "Updated First Name");
-
-            // Read again
-            students = getAllStudents(connection);
-            for (Student student : students) {
-                System.out.println(student.toString());
-            }
-
-            // Delete
-            //deleteStudent(connection, 1);
-
+    public void close() {
+        try {
+            if (connection != null && !connection.isClosed()) connection.close();
         } catch (SQLException e) {
             e.printStackTrace();
-        } finally {
-            try {
-                if (connection != null) {
-                    connection.close();
+        }
+    }
+
+    // CREATE
+    public void create(Student student) {
+        String sql = "INSERT INTO students (id, firstName, lastName, age, email, phone) VALUES (?, ?, ?, ?, ?, ?)";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, student.getId());
+            ps.setString(2, student.getFirstName());
+            ps.setString(3, student.getLastName());
+            ps.setInt(4, student.getAge());
+            ps.setString(5, student.getEmail());
+            ps.setString(6, student.getPhone());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+    }
+
+    // READ (by id)
+    public void read(int id) {
+        String sql = "SELECT id, firstName, lastName, age, email, phone FROM students WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Student s = new Student(
+                            rs.getInt("id"),
+                            rs.getString("firstName"),
+                            rs.getString("lastName"),
+                            rs.getInt("age"),
+                            rs.getString("email"),
+                            rs.getString("phone")
+                    );
+                    System.out.println(s);
+                } else {
+                    System.out.println("MySQL: No student found with id=" + id);
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
             }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 
-    private static void insertStudent(Connection connection, int id, String firstName, String lastName, int age, String email) throws SQLException {
-        String sql = "INSERT INTO students (id, firstName, lastName, age, email) VALUES (?, ?, ?, ?, ?)";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-            preparedStatement.setInt(1, id);
-            preparedStatement.setString(2, firstName);
-            preparedStatement.setString(3, lastName);
-            preparedStatement.setInt(4, age);
-            preparedStatement.setString(5, email);
-            preparedStatement.executeUpdate();
-        }
-    }
-
-    private static List<Student> getAllStudents(Connection connection) throws SQLException {
-        List<Student> students = new ArrayList<>();
-        String sql = "SELECT id, firstName, lastName, age, email FROM students";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql);
-             ResultSet resultSet = preparedStatement.executeQuery()) {
-            while (resultSet.next()) {
-                int id = resultSet.getInt("id");
-                String firstName = resultSet.getString("firstName");
-                String lastName = resultSet.getString("lastName");
-                int age = resultSet.getInt("age");
-                String email = resultSet.getString("email");
-                students.add(new Student(id, firstName, lastName, age, email));
+    // UPDATE (by id)
+    public void update(Student student) {
+        String sql = "UPDATE students SET firstName = ?, lastName = ?, age = ?, email = ?, phone = ? WHERE id = ?";
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setString(1, student.getFirstName());
+            ps.setString(2, student.getLastName());
+            ps.setInt(3, student.getAge());
+            ps.setString(4, student.getEmail());
+            ps.setString(5, student.getPhone());
+            ps.setInt(6, student.getId());
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                System.out.println("MySQL: Update did nothing (no matching id=" + student.getId() + ")");
             }
-        }
-        return students;
-    }
-
-    private static void updateStudent(Connection connection, int id, String newFirstName) throws SQLException {
-        String sql = "UPDATE students SET firstName = ? WHERE id = ?";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-            preparedStatement.setString(1, newFirstName);
-            preparedStatement.setInt(2, id);
-            preparedStatement.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
 
-    private static void deleteStudent(Connection connection, int id) throws SQLException {
+    // DELETE (by id)
+    public void delete(int id) {
         String sql = "DELETE FROM students WHERE id = ?";
-        try (PreparedStatement preparedStatement = connection.prepareStatement(sql)) {
-            preparedStatement.setInt(1, id);
-            preparedStatement.executeUpdate();
+        try (PreparedStatement ps = connection.prepareStatement(sql)) {
+            ps.setInt(1, id);
+            int rows = ps.executeUpdate();
+            if (rows == 0) {
+                System.out.println("MySQL: Delete did nothing (no matching id=" + id + ")");
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
         }
     }
-}
-
-class Student {
-    private int id;
-    private String firstName;
-    private String lastName;
-    private int age;
-    private String email;
-
-    public Student(int id, String firstName, String lastName, int age, String email) {
-        this.id = id;
-        this.firstName = firstName;
-        this.lastName = lastName;
-        this.age = age;
-        this.email = email;
-    }
-
-    @Override
-    public String toString() {
-        return "Student{" +
-                "id=" + id +
-                ", firstName='" + firstName + '\'' +
-                ", lastName='" + lastName + '\'' +
-                ", age=" + age +
-                ", email='" + email + '\'' +
-                '}';
-    }
-
 }
